@@ -1,0 +1,11 @@
+version: "3"
+
+tasks:
+  protoc:
+    cmds:
+      - echo "Generating protobuf"
+      - protoc --go_out=./ retro.proto
+  server:
+    cmds:
+      - echo "Building server"
+      - go build -o server.out ./cmd/server

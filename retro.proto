@@ -1,0 +1,21 @@
+syntax = "proto3";
+package retro;
+
+option go_package = "./;retro";
+
+message Sticky {
+    string owner = 1;
+    int64 X = 2;
+    int64 Y = 3;
+    string content = 4;
+}
+
+message User {
+    string id = 1;
+    string name = 2;
+}
+
+message State {
+    repeated Sticky stickies  = 1;
+    repeated User users = 2;
+}
