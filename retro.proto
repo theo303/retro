@@ -16,6 +16,6 @@ message User {
 }
 
 message State {
-    repeated Sticky stickies  = 1;
+    map<string, Sticky> stickies = 1;
     repeated User users = 2;
 }
