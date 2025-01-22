@@ -15,9 +15,8 @@ func main() {
 	ctx, _ = signal.NotifyContext(ctx, os.Interrupt)
 
 	s := retro.NewServer(":8080", 1*time.Second, &retro.State{
-		Users: []*retro.User{
-			{
-				Id:   "1",
+		Users: map[string]*retro.User{
+			"1": {
 				Name: "Raymond",
 			},
 		},

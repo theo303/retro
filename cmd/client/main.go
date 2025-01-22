@@ -46,6 +46,23 @@ func main() {
 				return
 			}
 			slog.Info(fmt.Sprintf("%+v", s))
+
+			action := &retro.Action{
+				Action: &retro.Action_Select{
+					Select: &retro.SelectAction{
+						StickyID: "876",
+					},
+				},
+			}
+			msgToWrite, err := proto.Marshal(action)
+			if err != nil {
+				slog.Error("proto marshal error", slog.Any("error", err))
+				return
+			}
+			if err := c.WriteMessage(websocket.BinaryMessage, msgToWrite); err != nil {
+				slog.Error("write error", slog.Any("error", err))
+				return
+			}
 		}
 	}()
 
