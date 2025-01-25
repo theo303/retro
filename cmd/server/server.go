@@ -23,9 +23,15 @@ func main() {
 		Stickies: map[string]*retro.Sticky{
 			"idsticky": {
 				Owner:   "1",
-				X:       989898,
-				Y:       -121212,
-				Content: "je contient du texte",
+				X:       100,
+				Y:       100,
+				Content: "je contient du texte11",
+			},
+			"idsticky2": {
+				Owner:   "1",
+				X:       200,
+				Y:       200,
+				Content: "je contient du texte22",
 			},
 		}})
 

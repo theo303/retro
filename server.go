@@ -18,7 +18,11 @@ import (
 const UserNameHeaderKey = "X-User-Name"
 const maxUserNameLength = 20
 
-var upgrader = websocket.Upgrader{}
+var upgrader = websocket.Upgrader{
+	CheckOrigin: func(_ *http.Request) bool {
+		return true
+	},
+}
 
 type Server struct {
 	*http.Server
@@ -42,7 +46,8 @@ func NewServer(addr string, tickRate time.Duration, state *State) *Server {
 		tickRate: tickRate,
 		state:    state,
 	}
-	http.HandleFunc("/", s.connect)
+	http.HandleFunc("/connect", s.connect)
+	http.Handle("/", http.FileServer(http.Dir("./public")))
 	return s
 }
 
