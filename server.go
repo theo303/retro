@@ -88,11 +88,14 @@ func randString() string {
 	return string(b)
 }
 
-func (s *Server) addConn(c *websocket.Conn, name string) string {
+func (s *Server) addConn(c *websocket.Conn, name string) (string, error) {
 	id := "u-" + randString()
+	if err := c.WriteMessage(websocket.TextMessage, []byte(id)); err != nil {
+		return "", fmt.Errorf("send userID error", err)
+	}
 	s.conns[id] = c
 	s.state.Users[id] = &User{Name: name}
-	return id
+	return id, nil
 }
 
 func (s *Server) connect(w http.ResponseWriter, r *http.Request) {
@@ -108,7 +111,12 @@ func (s *Server) connect(w http.ResponseWriter, r *http.Request) {
 	userName := r.Header.Get(UserNameHeaderKey)
 	userName = strings.TrimSpace(userName)
 	userName = userName[:min(maxUserNameLength, len(userName))]
-	userID := s.addConn(c, userName)
+
+	userID, err := s.addConn(c, userName)
+	if err != nil {
+		slog.Error("addConn error", slog.Any("error", err), slog.Any("userID", userID))
+		return
+	}
 	log := slog.With(slog.Any("userID", userID), slog.Any("userName", userName))
 	log.Info("client connected")
 
