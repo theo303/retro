@@ -4,8 +4,7 @@
     flake-utils.lib.eachDefaultSystem (system:
       let pkgs = import nixpkgs { inherit system; };
       in with pkgs; {
-        devShells.default = pkgs.mkShell {
-          packages = [ protobuf protoc-gen-go protoc-gen-js go-task ];
-        };
+        devShells.default =
+          pkgs.mkShell { packages = [ protobuf protoc-gen-go go-task ]; };
       });
 }

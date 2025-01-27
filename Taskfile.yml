@@ -9,7 +9,3 @@ tasks:
     cmds:
       - echo "Building server"
       - go build -o server.out ./cmd/server
-  client:
-    cmds:
-      - echo "Building client"
-      - go build -o client.out ./cmd/client
