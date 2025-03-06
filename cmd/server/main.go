@@ -33,7 +33,8 @@ func main() {
 				Y:       200,
 				Content: "je contient du texte22",
 			},
-		}})
+		},
+	})
 
 	go s.Run(ctx)
 	slog.Info("server started")

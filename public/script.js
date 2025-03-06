@@ -6,11 +6,12 @@ canvas.width = 0.98 * window.innerWidth;
 canvas.height = 0.97 * window.innerHeight;
 ctx = canvas.getContext("2d");
 
-ws = new WebSocket("http://localhost:8080/connect");
+ws = new WebSocket("http://localhost:8080/connect?name=browser");
 ws.binaryType = "arraybuffer";
 
 var stickiesPaths = new Map();
 var userID;
+var state;
 
 protobuf.load("retro.proto", function (err, root) {
   if (err) console.log(err);
@@ -18,27 +19,13 @@ protobuf.load("retro.proto", function (err, root) {
   const State = root.lookupType("retro.State");
   const Action = root.lookupType("retro.Action");
 
-  var firstMessage = true;
   ws.onmessage = function (event) {
-    if (firstMessage) {
-      firstMessage = false;
+    if (typeof event.data === "string") {
       userID = event.data;
+      return;
     }
     const payload = new Uint8Array(event.data);
-    const state = State.decode(payload);
-
-    clear();
-
-    for (const stickyID in state.stickies) {
-      const sticky = state.stickies[stickyID];
-      const path = drawSticky(
-        sticky.X,
-        sticky.Y,
-        sticky.content,
-        sticky.selectedBy,
-      );
-      stickiesPaths.set(stickyID, path);
-    }
+    state = State.decode(payload);
   };
 
   canvas.addEventListener("mousedown", function (e) {
@@ -66,6 +53,30 @@ protobuf.load("retro.proto", function (err, root) {
   });
 });
 
+var lastTime;
+
+function update(time) {
+  if (!state) {
+    requestAnimationFrame(update);
+    return;
+  }
+  clear(time - lastTime);
+  lastTime = time;
+
+  for (const stickyID in state.stickies) {
+    const sticky = state.stickies[stickyID];
+    const path = drawSticky(
+      sticky.X,
+      sticky.Y,
+      sticky.content,
+      sticky.selectedBy,
+    );
+    stickiesPaths.set(stickyID, path);
+  }
+
+  requestAnimationFrame(update);
+}
+
 function drawSticky(x, y, content, selectedBy) {
   ctx.moveTo(x, y);
   ctx.beginPath();
@@ -88,7 +99,7 @@ function drawSticky(x, y, content, selectedBy) {
   return path;
 }
 
-function clear() {
+function clear(deltaTime) {
   ctx.beginPath();
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.fillStyle = "black";
@@ -96,4 +107,7 @@ function clear() {
   ctx.textBaseline = "top";
   ctx.font = "15px Arial";
   ctx.fillText(userID, 0, 0);
+  ctx.fillText(Math.round((1 / deltaTime) * 1000), 0, 20);
 }
+
+requestAnimationFrame(update);

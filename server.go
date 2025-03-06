@@ -15,8 +15,10 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-const UserNameHeaderKey = "X-User-Name"
-const maxUserNameLength = 20
+const (
+	UserNameHeaderKey = "X-User-Name"
+	maxUserNameLength = 20
+)
 
 var upgrader = websocket.Upgrader{
 	CheckOrigin: func(_ *http.Request) bool {
@@ -59,6 +61,7 @@ func (s *Server) Run(ctx context.Context) {
 	}()
 
 	ticker := time.NewTicker(s.tickRate)
+	userIDTicker := time.NewTicker(s.tickRate * 100)
 	defer ticker.Stop()
 	for {
 		select {
@@ -71,7 +74,13 @@ func (s *Server) Run(ctx context.Context) {
 			}
 			for userID, conn := range s.conns {
 				if err := conn.WriteMessage(websocket.BinaryMessage, data); err != nil {
-					slog.Error("write message error", slog.Any("error", err), slog.Any("userID", userID))
+					slog.Error("write state message error", slog.Any("error", err), slog.Any("userID", userID))
+				}
+			}
+		case <-userIDTicker.C:
+			for userID, conn := range s.conns {
+				if err := conn.WriteMessage(websocket.TextMessage, []byte(userID)); err != nil {
+					slog.Error("write userID message error", slog.Any("error", err), slog.Any("userID", userID))
 				}
 			}
 		}
@@ -88,14 +97,11 @@ func randString() string {
 	return string(b)
 }
 
-func (s *Server) addConn(c *websocket.Conn, name string) (string, error) {
+func (s *Server) addConn(c *websocket.Conn, name string) string {
 	id := "u-" + randString()
-	if err := c.WriteMessage(websocket.TextMessage, []byte(id)); err != nil {
-		return "", fmt.Errorf("send userID error", err)
-	}
 	s.conns[id] = c
 	s.state.Users[id] = &User{Name: name}
-	return id, nil
+	return id
 }
 
 func (s *Server) connect(w http.ResponseWriter, r *http.Request) {
@@ -108,15 +114,11 @@ func (s *Server) connect(w http.ResponseWriter, r *http.Request) {
 	}
 	defer c.Close()
 
-	userName := r.Header.Get(UserNameHeaderKey)
+	userName := r.URL.Query().Get("name")
 	userName = strings.TrimSpace(userName)
 	userName = userName[:min(maxUserNameLength, len(userName))]
 
-	userID, err := s.addConn(c, userName)
-	if err != nil {
-		slog.Error("addConn error", slog.Any("error", err), slog.Any("userID", userID))
-		return
-	}
+	userID := s.addConn(c, userName)
 	log := slog.With(slog.Any("userID", userID), slog.Any("userName", userName))
 	log.Info("client connected")
 
@@ -176,7 +178,6 @@ func (s *Server) applyAction(a *Action, userID string) error {
 		s.state.Stickies[stickyID] = sticky
 		if err := selection(s.state, sticky, stickyID, userID); err != nil {
 			return fmt.Errorf("add: %w", err)
-
 		}
 	case *Action_Move:
 		moveAction := a.Action.(*Action_Move).Move
