@@ -26,14 +26,19 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
+type serverState struct {
+	*State
+	lastHeight int64
+	mutex      sync.Mutex
+}
+
 type Server struct {
 	*http.Server
 	conns map[string]*websocket.Conn
 
 	tickRate time.Duration
 
-	state *State
-	mutex sync.Mutex
+	serverState
 }
 
 func NewServer(addr string, tickRate time.Duration, state *State) *Server {
@@ -44,9 +49,9 @@ func NewServer(addr string, tickRate time.Duration, state *State) *Server {
 		Server: &http.Server{
 			Addr: addr,
 		},
-		conns:    make(map[string]*websocket.Conn),
-		tickRate: tickRate,
-		state:    state,
+		conns:       make(map[string]*websocket.Conn),
+		tickRate:    tickRate,
+		serverState: serverState{State: state},
 	}
 	http.HandleFunc("/connect", s.connect)
 	http.Handle("/", http.FileServer(http.Dir("./public")))
@@ -68,7 +73,7 @@ func (s *Server) Run(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			data, err := proto.Marshal(s.state)
+			data, err := proto.Marshal(s.State)
 			if err != nil {
 				slog.Error("proto marshal error", slog.Any("error", err))
 			}
@@ -100,7 +105,7 @@ func randString() string {
 func (s *Server) addConn(c *websocket.Conn, name string) string {
 	id := "u-" + randString()
 	s.conns[id] = c
-	s.state.Users[id] = &User{Name: name}
+	s.State.Users[id] = &User{Name: name}
 	return id
 }
 
@@ -150,7 +155,7 @@ func (s *Server) connect(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) applyAction(a *Action, userID string) error {
-	if s.state == nil {
+	if s.State == nil {
 		return errors.New("state is nil")
 	}
 	if a == nil {
@@ -161,32 +166,34 @@ func (s *Server) applyAction(a *Action, userID string) error {
 	switch a.Action.(type) {
 	case *Action_Select:
 		selectAction := a.Action.(*Action_Select).Select
-		sticky, ok := s.state.Stickies[selectAction.StickyID]
+		sticky, ok := s.State.Stickies[selectAction.StickyID]
 		if !ok {
 			return errors.New("select: sticky not found")
 		}
-		if err := selection(s.state, sticky, selectAction.StickyID, userID); err != nil {
+		if err := selection(s.State, sticky, selectAction.StickyID, userID); err != nil {
 			return fmt.Errorf("select: %w", err)
 		}
 	case *Action_Add:
 		addAction := a.Action.(*Action_Add).Add
 		stickyID := "s-" + randString()
+		s.lastHeight++
 		sticky := &Sticky{
-			X: addAction.X,
-			Y: addAction.Y,
+			X:      addAction.X,
+			Y:      addAction.Y,
+			Height: s.lastHeight,
 		}
-		s.state.Stickies[stickyID] = sticky
-		if err := selection(s.state, sticky, stickyID, userID); err != nil {
+		s.State.Stickies[stickyID] = sticky
+		if err := selection(s.State, sticky, stickyID, userID); err != nil {
 			return fmt.Errorf("add: %w", err)
 		}
 	case *Action_Move:
 		moveAction := a.Action.(*Action_Move).Move
-		sticky, ok := s.state.Stickies[moveAction.StickyID]
+		sticky, ok := s.State.Stickies[moveAction.StickyID]
 		if !ok {
 			return errors.New("move: sticky not found")
 		}
 		if sticky.SelectedBy == nil {
-			if err := selection(s.state, sticky, moveAction.StickyID, userID); err != nil {
+			if err := selection(s.State, sticky, moveAction.StickyID, userID); err != nil {
 				return fmt.Errorf("move: %w", err)
 			}
 		} else if *sticky.SelectedBy != userID {
@@ -196,12 +203,12 @@ func (s *Server) applyAction(a *Action, userID string) error {
 		sticky.Y = moveAction.Y
 	case *Action_Edit:
 		editAction := a.Action.(*Action_Edit).Edit
-		sticky, ok := s.state.Stickies[editAction.StickyID]
+		sticky, ok := s.State.Stickies[editAction.StickyID]
 		if !ok {
 			return errors.New("edit: sticky not found")
 		}
 		if sticky.SelectedBy == nil {
-			if err := selection(s.state, sticky, editAction.StickyID, userID); err != nil {
+			if err := selection(s.State, sticky, editAction.StickyID, userID); err != nil {
 				return fmt.Errorf("move: %w", err)
 			}
 		} else if *sticky.SelectedBy != userID {

@@ -9,9 +9,11 @@ ctx = canvas.getContext("2d");
 ws = new WebSocket("http://localhost:8080/connect?name=browser");
 ws.binaryType = "arraybuffer";
 
-var stickiesPaths = new Map();
+var stickiesPaths = [];
 var userID;
 var state;
+var isMoving = false;
+var selectedSticky;
 
 protobuf.load("retro.proto", function (err, root) {
   if (err) console.log(err);
@@ -34,11 +36,13 @@ protobuf.load("retro.proto", function (err, root) {
     const y = e.clientY - rect.top;
     console.log("x: " + x + " y: " + y);
 
-    for (let [stickyID, path] of stickiesPaths) {
-      if (ctx.isPointInPath(path, x, y)) {
+    for (let s of stickiesPaths) {
+      if (ctx.isPointInPath(s.path, x, y)) {
         const selectActionMessage = Action.create({
-          select: { StickyID: stickyID },
+          select: { StickyID: s.id },
         });
+        selectedSticky = s.id;
+        isMoving = true;
         const bb = Action.encode(selectActionMessage).finish();
         ws.send(bb);
         return;
@@ -46,10 +50,36 @@ protobuf.load("retro.proto", function (err, root) {
     }
 
     const addActionMessage = Action.create({
-      add: { X: x, Y: y },
+      add: {
+        X: x - STICKY_WIDTH / 2,
+        Y: y - STICKY_HEIGHT / 2,
+      },
     });
     var bb = Action.encode(addActionMessage).finish();
     ws.send(bb);
+  });
+
+  canvas.addEventListener("mouseup", function (e) {
+    isMoving = false;
+  });
+
+  canvas.addEventListener("mousemove", function (e) {
+    if (isMoving === false) {
+      return;
+    }
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const moveActionMessage = Action.create({
+      move: {
+        StickyID: selectedSticky,
+        X: x - STICKY_WIDTH / 2,
+        Y: y - STICKY_HEIGHT / 2,
+      },
+    });
+    const bb = Action.encode(moveActionMessage).finish();
+    ws.send(bb);
+    return;
   });
 });
 
@@ -63,16 +93,24 @@ function update(time) {
   clear(time - lastTime);
   lastTime = time;
 
+  var stickiesInOrder = [];
   for (const stickyID in state.stickies) {
-    const sticky = state.stickies[stickyID];
-    const path = drawSticky(
-      sticky.X,
-      sticky.Y,
-      sticky.content,
-      sticky.selectedBy,
-    );
-    stickiesPaths.set(stickyID, path);
+    stickiesInOrder.push({ id: stickyID, sticky: state.stickies[stickyID] });
   }
+
+  stickiesInOrder.sort((a, b) => a.sticky.height - b.sticky.height);
+
+  stickiesPaths = [];
+  for (const s of stickiesInOrder) {
+    const path = drawSticky(
+      s.sticky.X,
+      s.sticky.Y,
+      s.sticky.content,
+      s.sticky.selectedBy,
+    );
+    stickiesPaths.push({ id: s.id, path: path });
+  }
+  stickiesPaths.reverse();
 
   requestAnimationFrame(update);
 }

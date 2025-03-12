@@ -8,7 +8,8 @@ message Sticky {
     optional string selectedBy = 2;
     int64 X = 3;
     int64 Y = 4;
-    string content = 5;
+    int64 height = 5;
+    string content = 6;
 }
 
 message User {
