@@ -8,7 +8,9 @@ canvas.width = 0.98 * window.innerWidth;
 canvas.height = 0.97 * window.innerHeight;
 var ctx = canvas.getContext("2d")!;
 
-var ws = new WebSocket("http://localhost:8080/connect?name=browser");
+var ws = new WebSocket(
+  `${window.location.protocol === "https:" ? "wss:" : "ws:"}//${window.location.host}/connect?name=browser`,
+);
 ws.binaryType = "arraybuffer";
 
 var stickiesPaths: { id: string; path: Path2D }[] = [];
