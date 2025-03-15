@@ -1,4 +1,4 @@
-import { State, Action } from "./retro";
+import { State, Action, Sticky } from "./retro";
 
 const STICKY_WIDTH = 100;
 const STICKY_HEIGHT = 100;
@@ -8,16 +8,19 @@ canvas.width = 0.98 * window.innerWidth;
 canvas.height = 0.97 * window.innerHeight;
 var ctx = canvas.getContext("2d")!;
 
-var ws = new WebSocket(
-  `${window.location.protocol === "https:" ? "wss:" : "ws:"}//${window.location.host}/connect?name=browser`,
-);
+var serverAddress = `${window.location.protocol === "https:" ? "wss:" : "ws:"}//${window.location.host}`;
+if (import.meta.env.DEV) {
+  serverAddress = "ws://localhost:8080";
+}
+
+var ws = new WebSocket(`${serverAddress}/connect?name=browser`);
 ws.binaryType = "arraybuffer";
 
 var stickiesPaths: { id: string; path: Path2D }[] = [];
 var userID: string;
 var state: State;
 var isMoving = false;
-var selectedStickyID: string;
+var selected: { id: string; sticky: Sticky; offset: { x: number; y: number } };
 
 ws.onmessage = function (event) {
   if (typeof event.data === "string") {
@@ -29,17 +32,26 @@ ws.onmessage = function (event) {
 };
 
 canvas.addEventListener("mousedown", function (e) {
-  const rect = canvas.getBoundingClientRect();
-  const x = e.clientX - rect.left;
-  const y = e.clientY - rect.top;
-  console.log("x: " + x + " y: " + y);
+  if (e.button !== 0) {
+    return;
+  }
+
+  const x = e.clientX;
+  const y = e.clientY;
 
   for (let s of stickiesPaths) {
     if (ctx.isPointInPath(s.path, x, y)) {
       const selectActionMessage = Action.create({
         select: { StickyID: s.id },
       });
-      selectedStickyID = s.id;
+      selected = {
+        id: s.id,
+        sticky: state.stickies[s.id],
+        offset: {
+          x: x - state.stickies[s.id].X,
+          y: y - state.stickies[s.id].Y,
+        },
+      };
       isMoving = true;
       const bb = Action.encode(selectActionMessage).finish();
       ws.send(bb);
@@ -65,14 +77,14 @@ canvas.addEventListener("mousemove", function (e) {
   if (isMoving === false) {
     return;
   }
-  const rect = canvas.getBoundingClientRect();
-  const x = e.clientX - rect.left;
-  const y = e.clientY - rect.top;
+
+  const x = e.clientX;
+  const y = e.clientY;
   const moveActionMessage = Action.create({
     move: {
-      StickyID: selectedStickyID,
-      X: x - STICKY_WIDTH / 2,
-      Y: y - STICKY_HEIGHT / 2,
+      StickyID: selected.id,
+      X: x - selected.offset.x,
+      Y: y - selected.offset.y,
     },
   });
   const bb = Action.encode(moveActionMessage).finish();
