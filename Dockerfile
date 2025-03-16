@@ -1,8 +1,13 @@
-FROM golang:1.23 AS builder
+FROM node:23-alpine AS node-builder
 
-ARG BUILD_DATE
-ARG TARGETOS
-ARG TARGETARCH
+WORKDIR /front
+
+COPY front .
+
+RUN npm install
+RUN npm run build
+
+FROM golang:1.23 AS go-builder
 
 WORKDIR /go/src/github.com/theo303/retro
 
@@ -18,8 +23,8 @@ FROM alpine:latest
 
 WORKDIR /
 
-COPY --from=builder /go/src/github.com/theo303/retro/server.out .
-COPY public public
+COPY --from=go-builder /go/src/github.com/theo303/retro/server.out .
+COPY --from=node-builder /front/dist public
 
 EXPOSE 8080
 
