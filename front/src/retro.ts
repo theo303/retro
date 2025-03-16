@@ -10,6 +10,7 @@ import { BinaryReader, BinaryWriter } from "@bufbuild/protobuf/wire";
 export const protobufPackage = "retro";
 
 export interface Sticky {
+  id: string;
   owner: string;
   selectedBy?: string | undefined;
   X: number;
@@ -24,13 +25,8 @@ export interface User {
 }
 
 export interface State {
-  stickies: { [key: string]: Sticky };
+  stickies: Sticky[];
   users: { [key: string]: User };
-}
-
-export interface State_StickiesEntry {
-  key: string;
-  value: Sticky | undefined;
 }
 
 export interface State_UsersEntry {
@@ -66,28 +62,31 @@ export interface Action {
 }
 
 function createBaseSticky(): Sticky {
-  return { owner: "", selectedBy: undefined, X: 0, Y: 0, height: 0, content: "" };
+  return { id: "", owner: "", selectedBy: undefined, X: 0, Y: 0, height: 0, content: "" };
 }
 
 export const Sticky: MessageFns<Sticky> = {
   encode(message: Sticky, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.id !== "") {
+      writer.uint32(10).string(message.id);
+    }
     if (message.owner !== "") {
-      writer.uint32(10).string(message.owner);
+      writer.uint32(18).string(message.owner);
     }
     if (message.selectedBy !== undefined) {
-      writer.uint32(18).string(message.selectedBy);
+      writer.uint32(26).string(message.selectedBy);
     }
     if (message.X !== 0) {
-      writer.uint32(24).int64(message.X);
+      writer.uint32(32).int64(message.X);
     }
     if (message.Y !== 0) {
-      writer.uint32(32).int64(message.Y);
+      writer.uint32(40).int64(message.Y);
     }
     if (message.height !== 0) {
-      writer.uint32(40).int64(message.height);
+      writer.uint32(48).int64(message.height);
     }
     if (message.content !== "") {
-      writer.uint32(50).string(message.content);
+      writer.uint32(58).string(message.content);
     }
     return writer;
   },
@@ -104,7 +103,7 @@ export const Sticky: MessageFns<Sticky> = {
             break;
           }
 
-          message.owner = reader.string();
+          message.id = reader.string();
           continue;
         }
         case 2: {
@@ -112,15 +111,15 @@ export const Sticky: MessageFns<Sticky> = {
             break;
           }
 
-          message.selectedBy = reader.string();
+          message.owner = reader.string();
           continue;
         }
         case 3: {
-          if (tag !== 24) {
+          if (tag !== 26) {
             break;
           }
 
-          message.X = longToNumber(reader.int64());
+          message.selectedBy = reader.string();
           continue;
         }
         case 4: {
@@ -128,7 +127,7 @@ export const Sticky: MessageFns<Sticky> = {
             break;
           }
 
-          message.Y = longToNumber(reader.int64());
+          message.X = longToNumber(reader.int64());
           continue;
         }
         case 5: {
@@ -136,11 +135,19 @@ export const Sticky: MessageFns<Sticky> = {
             break;
           }
 
-          message.height = longToNumber(reader.int64());
+          message.Y = longToNumber(reader.int64());
           continue;
         }
         case 6: {
-          if (tag !== 50) {
+          if (tag !== 48) {
+            break;
+          }
+
+          message.height = longToNumber(reader.int64());
+          continue;
+        }
+        case 7: {
+          if (tag !== 58) {
             break;
           }
 
@@ -158,6 +165,7 @@ export const Sticky: MessageFns<Sticky> = {
 
   fromJSON(object: any): Sticky {
     return {
+      id: isSet(object.id) ? globalThis.String(object.id) : "",
       owner: isSet(object.owner) ? globalThis.String(object.owner) : "",
       selectedBy: isSet(object.selectedBy) ? globalThis.String(object.selectedBy) : undefined,
       X: isSet(object.X) ? globalThis.Number(object.X) : 0,
@@ -169,6 +177,9 @@ export const Sticky: MessageFns<Sticky> = {
 
   toJSON(message: Sticky): unknown {
     const obj: any = {};
+    if (message.id !== "") {
+      obj.id = message.id;
+    }
     if (message.owner !== "") {
       obj.owner = message.owner;
     }
@@ -195,6 +206,7 @@ export const Sticky: MessageFns<Sticky> = {
   },
   fromPartial<I extends Exact<DeepPartial<Sticky>, I>>(object: I): Sticky {
     const message = createBaseSticky();
+    message.id = object.id ?? "";
     message.owner = object.owner ?? "";
     message.selectedBy = object.selectedBy ?? undefined;
     message.X = object.X ?? 0;
@@ -282,14 +294,14 @@ export const User: MessageFns<User> = {
 };
 
 function createBaseState(): State {
-  return { stickies: {}, users: {} };
+  return { stickies: [], users: {} };
 }
 
 export const State: MessageFns<State> = {
   encode(message: State, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    Object.entries(message.stickies).forEach(([key, value]) => {
-      State_StickiesEntry.encode({ key: key as any, value }, writer.uint32(10).fork()).join();
-    });
+    for (const v of message.stickies) {
+      Sticky.encode(v!, writer.uint32(10).fork()).join();
+    }
     Object.entries(message.users).forEach(([key, value]) => {
       State_UsersEntry.encode({ key: key as any, value }, writer.uint32(18).fork()).join();
     });
@@ -308,10 +320,7 @@ export const State: MessageFns<State> = {
             break;
           }
 
-          const entry1 = State_StickiesEntry.decode(reader, reader.uint32());
-          if (entry1.value !== undefined) {
-            message.stickies[entry1.key] = entry1.value;
-          }
+          message.stickies.push(Sticky.decode(reader, reader.uint32()));
           continue;
         }
         case 2: {
@@ -336,12 +345,7 @@ export const State: MessageFns<State> = {
 
   fromJSON(object: any): State {
     return {
-      stickies: isObject(object.stickies)
-        ? Object.entries(object.stickies).reduce<{ [key: string]: Sticky }>((acc, [key, value]) => {
-          acc[key] = Sticky.fromJSON(value);
-          return acc;
-        }, {})
-        : {},
+      stickies: globalThis.Array.isArray(object?.stickies) ? object.stickies.map((e: any) => Sticky.fromJSON(e)) : [],
       users: isObject(object.users)
         ? Object.entries(object.users).reduce<{ [key: string]: User }>((acc, [key, value]) => {
           acc[key] = User.fromJSON(value);
@@ -353,14 +357,8 @@ export const State: MessageFns<State> = {
 
   toJSON(message: State): unknown {
     const obj: any = {};
-    if (message.stickies) {
-      const entries = Object.entries(message.stickies);
-      if (entries.length > 0) {
-        obj.stickies = {};
-        entries.forEach(([k, v]) => {
-          obj.stickies[k] = Sticky.toJSON(v);
-        });
-      }
+    if (message.stickies?.length) {
+      obj.stickies = message.stickies.map((e) => Sticky.toJSON(e));
     }
     if (message.users) {
       const entries = Object.entries(message.users);
@@ -379,96 +377,13 @@ export const State: MessageFns<State> = {
   },
   fromPartial<I extends Exact<DeepPartial<State>, I>>(object: I): State {
     const message = createBaseState();
-    message.stickies = Object.entries(object.stickies ?? {}).reduce<{ [key: string]: Sticky }>((acc, [key, value]) => {
-      if (value !== undefined) {
-        acc[key] = Sticky.fromPartial(value);
-      }
-      return acc;
-    }, {});
+    message.stickies = object.stickies?.map((e) => Sticky.fromPartial(e)) || [];
     message.users = Object.entries(object.users ?? {}).reduce<{ [key: string]: User }>((acc, [key, value]) => {
       if (value !== undefined) {
         acc[key] = User.fromPartial(value);
       }
       return acc;
     }, {});
-    return message;
-  },
-};
-
-function createBaseState_StickiesEntry(): State_StickiesEntry {
-  return { key: "", value: undefined };
-}
-
-export const State_StickiesEntry: MessageFns<State_StickiesEntry> = {
-  encode(message: State_StickiesEntry, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.key !== "") {
-      writer.uint32(10).string(message.key);
-    }
-    if (message.value !== undefined) {
-      Sticky.encode(message.value, writer.uint32(18).fork()).join();
-    }
-    return writer;
-  },
-
-  decode(input: BinaryReader | Uint8Array, length?: number): State_StickiesEntry {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
-    let end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseState_StickiesEntry();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-        case 1: {
-          if (tag !== 10) {
-            break;
-          }
-
-          message.key = reader.string();
-          continue;
-        }
-        case 2: {
-          if (tag !== 18) {
-            break;
-          }
-
-          message.value = Sticky.decode(reader, reader.uint32());
-          continue;
-        }
-      }
-      if ((tag & 7) === 4 || tag === 0) {
-        break;
-      }
-      reader.skip(tag & 7);
-    }
-    return message;
-  },
-
-  fromJSON(object: any): State_StickiesEntry {
-    return {
-      key: isSet(object.key) ? globalThis.String(object.key) : "",
-      value: isSet(object.value) ? Sticky.fromJSON(object.value) : undefined,
-    };
-  },
-
-  toJSON(message: State_StickiesEntry): unknown {
-    const obj: any = {};
-    if (message.key !== "") {
-      obj.key = message.key;
-    }
-    if (message.value !== undefined) {
-      obj.value = Sticky.toJSON(message.value);
-    }
-    return obj;
-  },
-
-  create<I extends Exact<DeepPartial<State_StickiesEntry>, I>>(base?: I): State_StickiesEntry {
-    return State_StickiesEntry.fromPartial(base ?? ({} as any));
-  },
-  fromPartial<I extends Exact<DeepPartial<State_StickiesEntry>, I>>(object: I): State_StickiesEntry {
-    const message = createBaseState_StickiesEntry();
-    message.key = object.key ?? "";
-    message.value = (object.value !== undefined && object.value !== null)
-      ? Sticky.fromPartial(object.value)
-      : undefined;
     return message;
   },
 };

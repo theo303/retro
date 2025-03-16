@@ -1,4 +1,4 @@
-import { State, Action } from "./retro";
+import { State, Action, Sticky } from "./retro";
 
 const STICKY_WIDTH = 100;
 const STICKY_HEIGHT = 100;
@@ -16,12 +16,12 @@ if (import.meta.env.DEV) {
 var ws = new WebSocket(`${serverAddress}/connect?name=browser`);
 ws.binaryType = "arraybuffer";
 
-var stickiesPaths: { id: string; path: Path2D }[] = [];
+var stickiesPaths: { sticky: Sticky; path: Path2D }[] = [];
 var userID: string;
 var state: State;
 var isMoving = false;
 var isEditing = false;
-var selected: { id: string; offset?: { x: number; y: number } } | undefined;
+var selected: { sticky: Sticky; offset?: { x: number; y: number } } | undefined;
 
 ws.onmessage = function (event) {
   if (typeof event.data === "string") {
@@ -31,9 +31,9 @@ ws.onmessage = function (event) {
   const payload = new Uint8Array(event.data);
   state = State.decode(payload);
   if (!selected) {
-    for (let id in state.stickies) {
-      if (state.stickies[id].selectedBy === userID) {
-        selected = { id: id };
+    for (let sticky of state.stickies) {
+      if (sticky.selectedBy === userID) {
+        selected = { sticky: sticky };
       }
     }
   }
@@ -50,18 +50,17 @@ canvas.addEventListener("mousedown", function (e) {
   isEditing = false;
   for (let s of stickiesPaths) {
     if (ctx.isPointInPath(s.path, x, y)) {
-      if (selected && s.id == selected.id) {
+      if (selected && s.sticky.id == selected.sticky.id) {
         isEditing = true;
-        return;
       }
       const selectActionMessage = Action.create({
-        select: { StickyID: s.id },
+        select: { StickyID: s.sticky.id },
       });
       selected = {
-        id: s.id,
+        sticky: s.sticky,
         offset: {
-          x: x - state.stickies[s.id].X,
-          y: y - state.stickies[s.id].Y,
+          x: x - s.sticky.X,
+          y: y - s.sticky.Y,
         },
       };
       isMoving = true;
@@ -93,7 +92,7 @@ canvas.addEventListener("mousemove", function (e) {
 
   const moveActionMessage = Action.create({
     move: {
-      StickyID: selected.id,
+      StickyID: selected.sticky.id,
       X: e.clientX - selected.offset!.x,
       Y: e.clientY - selected.offset!.y,
     },
@@ -108,10 +107,11 @@ canvas.addEventListener("keypress", function (e) {
     return;
   }
 
+  selected.sticky.content += e.key;
   const updateContentMessage = Action.create({
     edit: {
-      StickyID: selected.id,
-      content: state.stickies[selected.id].content + e.key,
+      StickyID: selected.sticky.id,
+      content: selected.sticky.content,
     },
   });
   const bb = Action.encode(updateContentMessage).finish();
@@ -124,14 +124,14 @@ canvas.addEventListener("keydown", function (e) {
   }
 
   if (e.key === "Backspace") {
-    const content = state.stickies[selected.id].content;
+    const content = selected.sticky.content;
     if (content.length === 0) {
       return;
     }
 
     const updateContentMessage = Action.create({
       edit: {
-        StickyID: selected.id,
+        StickyID: selected.sticky.id,
         content: content.substring(0, content.length - 1),
       },
     });
@@ -150,22 +150,10 @@ function update(time: DOMHighResTimeStamp) {
   clear(time - lastTime);
   lastTime = time;
 
-  var stickiesInOrder = [];
-  for (const stickyID in state.stickies) {
-    stickiesInOrder.push({ id: stickyID, sticky: state.stickies[stickyID] });
-  }
-
-  stickiesInOrder.sort((a, b) => a.sticky.height - b.sticky.height);
-
   stickiesPaths = [];
-  for (const s of stickiesInOrder) {
-    const path = drawSticky(
-      s.sticky.X,
-      s.sticky.Y,
-      s.sticky.content,
-      s.sticky.selectedBy,
-    );
-    stickiesPaths.push({ id: s.id, path: path });
+  for (let s of state.stickies) {
+    const path = drawSticky(s.X, s.Y, s.content, s.selectedBy);
+    stickiesPaths.push({ sticky: s, path: path });
   }
   stickiesPaths.reverse();
 

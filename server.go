@@ -166,8 +166,8 @@ func (s *Server) applyAction(a *Action, userID string) error {
 	switch a.Action.(type) {
 	case *Action_Select:
 		selectAction := a.Action.(*Action_Select).Select
-		sticky, ok := s.State.Stickies[selectAction.StickyID]
-		if !ok {
+		sticky := getSticky(s.State.Stickies, selectAction.StickyID)
+		if sticky == nil {
 			return errors.New("select: sticky not found")
 		}
 		if err := selection(s.State, sticky, selectAction.StickyID, userID); err != nil {
@@ -178,18 +178,19 @@ func (s *Server) applyAction(a *Action, userID string) error {
 		stickyID := "s-" + randString()
 		s.lastHeight++
 		sticky := &Sticky{
+			Id:     stickyID,
 			X:      addAction.X,
 			Y:      addAction.Y,
 			Height: s.lastHeight,
 		}
-		s.State.Stickies[stickyID] = sticky
+		s.State.Stickies = append(s.State.Stickies, sticky)
 		if err := selection(s.State, sticky, stickyID, userID); err != nil {
 			return fmt.Errorf("add: %w", err)
 		}
 	case *Action_Move:
 		moveAction := a.Action.(*Action_Move).Move
-		sticky, ok := s.State.Stickies[moveAction.StickyID]
-		if !ok {
+		sticky := getSticky(s.State.Stickies, moveAction.StickyID)
+		if sticky == nil {
 			return errors.New("move: sticky not found")
 		}
 		if sticky.SelectedBy == nil {
@@ -203,8 +204,8 @@ func (s *Server) applyAction(a *Action, userID string) error {
 		sticky.Y = moveAction.Y
 	case *Action_Edit:
 		editAction := a.Action.(*Action_Edit).Edit
-		sticky, ok := s.State.Stickies[editAction.StickyID]
-		if !ok {
+		sticky := getSticky(s.State.Stickies, editAction.StickyID)
+		if sticky == nil {
 			return errors.New("edit: sticky not found")
 		}
 		if sticky.SelectedBy == nil {
@@ -222,14 +223,17 @@ func (s *Server) applyAction(a *Action, userID string) error {
 }
 
 func selection(s *State, sticky *Sticky, stickyID, userID string) error {
+	if sticky == nil {
+		return errors.New("sticky is nil")
+	}
 	user, ok := s.Users[userID]
 	if !ok {
 		return errors.New("user not found")
 	}
 	if user.HasSelected != nil {
-		selected, ok := s.Stickies[*user.HasSelected]
-		if ok {
-			selected.SelectedBy = nil
+		sticky := getSticky(s.Stickies, *user.HasSelected)
+		if sticky != nil {
+			sticky.SelectedBy = nil
 		}
 	}
 	sticky.SelectedBy = &userID

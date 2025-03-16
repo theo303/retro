@@ -20,14 +20,16 @@ func main() {
 				Name: "Raymond",
 			},
 		},
-		Stickies: map[string]*retro.Sticky{
-			"idsticky": {
+		Stickies: []*retro.Sticky{
+			{
+				Id:      "idsticky",
 				Owner:   "1",
 				X:       100,
 				Y:       100,
 				Content: "je contient du texte11",
 			},
-			"idsticky2": {
+			{
+				Id:      "idsticky2",
 				Owner:   "1",
 				X:       200,
 				Y:       200,

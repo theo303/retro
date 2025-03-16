@@ -4,12 +4,13 @@ package retro;
 option go_package = "./;retro";
 
 message Sticky {
-    string owner = 1;
-    optional string selectedBy = 2;
-    int64 X = 3;
-    int64 Y = 4;
-    int64 height = 5;
-    string content = 6;
+    string id = 1;
+    string owner = 2;
+    optional string selectedBy = 3;
+    int64 X = 4;
+    int64 Y = 5;
+    int64 height = 6;
+    string content = 7;
 }
 
 message User {
@@ -18,7 +19,7 @@ message User {
 }
 
 message State {
-    map<string, Sticky> stickies = 1;
+    repeated Sticky stickies = 1;
     map<string, User> users = 2;
 }
 
