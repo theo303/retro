@@ -14,6 +14,8 @@ func main() {
 	ctx := context.Background()
 	ctx, _ = signal.NotifyContext(ctx, os.Interrupt)
 
+	slog.SetLogLoggerLevel(slog.LevelDebug)
+
 	s := retro.NewServer(":8080", 10*time.Millisecond, &retro.State{
 		Users: map[string]*retro.User{
 			"1": {

@@ -15,7 +15,6 @@ export interface Sticky {
   selectedBy?: string | undefined;
   X: number;
   Y: number;
-  height: number;
   content: string;
 }
 
@@ -62,7 +61,7 @@ export interface Action {
 }
 
 function createBaseSticky(): Sticky {
-  return { id: "", owner: "", selectedBy: undefined, X: 0, Y: 0, height: 0, content: "" };
+  return { id: "", owner: "", selectedBy: undefined, X: 0, Y: 0, content: "" };
 }
 
 export const Sticky: MessageFns<Sticky> = {
@@ -82,11 +81,8 @@ export const Sticky: MessageFns<Sticky> = {
     if (message.Y !== 0) {
       writer.uint32(40).int64(message.Y);
     }
-    if (message.height !== 0) {
-      writer.uint32(48).int64(message.height);
-    }
     if (message.content !== "") {
-      writer.uint32(58).string(message.content);
+      writer.uint32(50).string(message.content);
     }
     return writer;
   },
@@ -139,15 +135,7 @@ export const Sticky: MessageFns<Sticky> = {
           continue;
         }
         case 6: {
-          if (tag !== 48) {
-            break;
-          }
-
-          message.height = longToNumber(reader.int64());
-          continue;
-        }
-        case 7: {
-          if (tag !== 58) {
+          if (tag !== 50) {
             break;
           }
 
@@ -170,7 +158,6 @@ export const Sticky: MessageFns<Sticky> = {
       selectedBy: isSet(object.selectedBy) ? globalThis.String(object.selectedBy) : undefined,
       X: isSet(object.X) ? globalThis.Number(object.X) : 0,
       Y: isSet(object.Y) ? globalThis.Number(object.Y) : 0,
-      height: isSet(object.height) ? globalThis.Number(object.height) : 0,
       content: isSet(object.content) ? globalThis.String(object.content) : "",
     };
   },
@@ -192,9 +179,6 @@ export const Sticky: MessageFns<Sticky> = {
     if (message.Y !== 0) {
       obj.Y = Math.round(message.Y);
     }
-    if (message.height !== 0) {
-      obj.height = Math.round(message.height);
-    }
     if (message.content !== "") {
       obj.content = message.content;
     }
@@ -211,7 +195,6 @@ export const Sticky: MessageFns<Sticky> = {
     message.selectedBy = object.selectedBy ?? undefined;
     message.X = object.X ?? 0;
     message.Y = object.Y ?? 0;
-    message.height = object.height ?? 0;
     message.content = object.content ?? "";
     return message;
   },

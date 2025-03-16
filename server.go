@@ -28,8 +28,7 @@ var upgrader = websocket.Upgrader{
 
 type serverState struct {
 	*State
-	lastHeight int64
-	mutex      sync.Mutex
+	mutex sync.Mutex
 }
 
 type Server struct {
@@ -166,7 +165,7 @@ func (s *Server) applyAction(a *Action, userID string) error {
 	switch a.Action.(type) {
 	case *Action_Select:
 		selectAction := a.Action.(*Action_Select).Select
-		sticky := getSticky(s.State.Stickies, selectAction.StickyID)
+		sticky := riseSticky(s.State.Stickies, selectAction.StickyID)
 		if sticky == nil {
 			return errors.New("select: sticky not found")
 		}
@@ -176,12 +175,10 @@ func (s *Server) applyAction(a *Action, userID string) error {
 	case *Action_Add:
 		addAction := a.Action.(*Action_Add).Add
 		stickyID := "s-" + randString()
-		s.lastHeight++
 		sticky := &Sticky{
-			Id:     stickyID,
-			X:      addAction.X,
-			Y:      addAction.Y,
-			Height: s.lastHeight,
+			Id: stickyID,
+			X:  addAction.X,
+			Y:  addAction.Y,
 		}
 		s.State.Stickies = append(s.State.Stickies, sticky)
 		if err := selection(s.State, sticky, stickyID, userID); err != nil {
@@ -189,7 +186,7 @@ func (s *Server) applyAction(a *Action, userID string) error {
 		}
 	case *Action_Move:
 		moveAction := a.Action.(*Action_Move).Move
-		sticky := getSticky(s.State.Stickies, moveAction.StickyID)
+		sticky := riseSticky(s.State.Stickies, moveAction.StickyID)
 		if sticky == nil {
 			return errors.New("move: sticky not found")
 		}
@@ -204,7 +201,7 @@ func (s *Server) applyAction(a *Action, userID string) error {
 		sticky.Y = moveAction.Y
 	case *Action_Edit:
 		editAction := a.Action.(*Action_Edit).Edit
-		sticky := getSticky(s.State.Stickies, editAction.StickyID)
+		sticky := riseSticky(s.State.Stickies, editAction.StickyID)
 		if sticky == nil {
 			return errors.New("edit: sticky not found")
 		}
