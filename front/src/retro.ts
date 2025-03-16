@@ -53,11 +53,16 @@ export interface EditAction {
   content: string;
 }
 
+export interface DeleteAction {
+  StickyID: string;
+}
+
 export interface Action {
   select?: SelectAction | undefined;
   add?: AddAction | undefined;
   move?: MoveAction | undefined;
   edit?: EditAction | undefined;
+  delete?: DeleteAction | undefined;
 }
 
 function createBaseSticky(): Sticky {
@@ -749,8 +754,66 @@ export const EditAction: MessageFns<EditAction> = {
   },
 };
 
+function createBaseDeleteAction(): DeleteAction {
+  return { StickyID: "" };
+}
+
+export const DeleteAction: MessageFns<DeleteAction> = {
+  encode(message: DeleteAction, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.StickyID !== "") {
+      writer.uint32(10).string(message.StickyID);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): DeleteAction {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseDeleteAction();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.StickyID = reader.string();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): DeleteAction {
+    return { StickyID: isSet(object.StickyID) ? globalThis.String(object.StickyID) : "" };
+  },
+
+  toJSON(message: DeleteAction): unknown {
+    const obj: any = {};
+    if (message.StickyID !== "") {
+      obj.StickyID = message.StickyID;
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<DeleteAction>, I>>(base?: I): DeleteAction {
+    return DeleteAction.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<DeleteAction>, I>>(object: I): DeleteAction {
+    const message = createBaseDeleteAction();
+    message.StickyID = object.StickyID ?? "";
+    return message;
+  },
+};
+
 function createBaseAction(): Action {
-  return { select: undefined, add: undefined, move: undefined, edit: undefined };
+  return { select: undefined, add: undefined, move: undefined, edit: undefined, delete: undefined };
 }
 
 export const Action: MessageFns<Action> = {
@@ -766,6 +829,9 @@ export const Action: MessageFns<Action> = {
     }
     if (message.edit !== undefined) {
       EditAction.encode(message.edit, writer.uint32(34).fork()).join();
+    }
+    if (message.delete !== undefined) {
+      DeleteAction.encode(message.delete, writer.uint32(42).fork()).join();
     }
     return writer;
   },
@@ -809,6 +875,14 @@ export const Action: MessageFns<Action> = {
           message.edit = EditAction.decode(reader, reader.uint32());
           continue;
         }
+        case 5: {
+          if (tag !== 42) {
+            break;
+          }
+
+          message.delete = DeleteAction.decode(reader, reader.uint32());
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -824,6 +898,7 @@ export const Action: MessageFns<Action> = {
       add: isSet(object.add) ? AddAction.fromJSON(object.add) : undefined,
       move: isSet(object.move) ? MoveAction.fromJSON(object.move) : undefined,
       edit: isSet(object.edit) ? EditAction.fromJSON(object.edit) : undefined,
+      delete: isSet(object.delete) ? DeleteAction.fromJSON(object.delete) : undefined,
     };
   },
 
@@ -840,6 +915,9 @@ export const Action: MessageFns<Action> = {
     }
     if (message.edit !== undefined) {
       obj.edit = EditAction.toJSON(message.edit);
+    }
+    if (message.delete !== undefined) {
+      obj.delete = DeleteAction.toJSON(message.delete);
     }
     return obj;
   },
@@ -858,6 +936,9 @@ export const Action: MessageFns<Action> = {
       : undefined;
     message.edit = (object.edit !== undefined && object.edit !== null)
       ? EditAction.fromPartial(object.edit)
+      : undefined;
+    message.delete = (object.delete !== undefined && object.delete !== null)
+      ? DeleteAction.fromPartial(object.delete)
       : undefined;
     return message;
   },

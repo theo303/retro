@@ -162,57 +162,57 @@ func (s *Server) applyAction(a *Action, userID string) error {
 	}
 	s.mutex.Lock()
 	defer s.mutex.Unlock()
-	switch a.Action.(type) {
+	switch action := a.Action.(type) {
 	case *Action_Select:
-		selectAction := a.Action.(*Action_Select).Select
-		sticky := riseSticky(s.State.Stickies, selectAction.StickyID)
+		sticky := riseSticky(s.State.Stickies, action.Select.StickyID)
 		if sticky == nil {
 			return errors.New("select: sticky not found")
 		}
-		if err := selection(s.State, sticky, selectAction.StickyID, userID); err != nil {
+		if err := selection(s.State, sticky, action.Select.StickyID, userID); err != nil {
 			return fmt.Errorf("select: %w", err)
 		}
 	case *Action_Add:
-		addAction := a.Action.(*Action_Add).Add
 		stickyID := "s-" + randString()
 		sticky := &Sticky{
 			Id: stickyID,
-			X:  addAction.X,
-			Y:  addAction.Y,
+			X:  action.Add.X,
+			Y:  action.Add.Y,
 		}
 		s.State.Stickies = append(s.State.Stickies, sticky)
 		if err := selection(s.State, sticky, stickyID, userID); err != nil {
 			return fmt.Errorf("add: %w", err)
 		}
 	case *Action_Move:
-		moveAction := a.Action.(*Action_Move).Move
-		sticky := riseSticky(s.State.Stickies, moveAction.StickyID)
+		sticky := riseSticky(s.State.Stickies, action.Move.StickyID)
 		if sticky == nil {
 			return errors.New("move: sticky not found")
 		}
 		if sticky.SelectedBy == nil {
-			if err := selection(s.State, sticky, moveAction.StickyID, userID); err != nil {
+			if err := selection(s.State, sticky, action.Move.StickyID, userID); err != nil {
 				return fmt.Errorf("move: %w", err)
 			}
 		} else if *sticky.SelectedBy != userID {
 			return fmt.Errorf("move: sticky is selected by another user (%s)", *sticky.SelectedBy)
 		}
-		sticky.X = moveAction.X
-		sticky.Y = moveAction.Y
+		sticky.X = action.Move.X
+		sticky.Y = action.Move.Y
 	case *Action_Edit:
-		editAction := a.Action.(*Action_Edit).Edit
-		sticky := riseSticky(s.State.Stickies, editAction.StickyID)
+		sticky := riseSticky(s.State.Stickies, action.Edit.StickyID)
 		if sticky == nil {
 			return errors.New("edit: sticky not found")
 		}
 		if sticky.SelectedBy == nil {
-			if err := selection(s.State, sticky, editAction.StickyID, userID); err != nil {
+			if err := selection(s.State, sticky, action.Edit.StickyID, userID); err != nil {
 				return fmt.Errorf("move: %w", err)
 			}
 		} else if *sticky.SelectedBy != userID {
 			return fmt.Errorf("edit: sticky is selected by another user (%s)", *sticky.SelectedBy)
 		}
-		sticky.Content = editAction.Content
+		sticky.Content = action.Edit.Content
+	case *Action_Delete:
+		deleteSticky(s.State.Stickies, action.Delete.StickyID)
+		// NOTE: this can't be done inside the function deleteSticky, why ?
+		s.Stickies = s.Stickies[:len(s.Stickies)-1]
 	default:
 		return fmt.Errorf("unknown action type (%T)", a.Action)
 	}

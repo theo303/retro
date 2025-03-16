@@ -103,13 +103,28 @@ canvas.addEventListener("mousemove", function (e) {
 });
 
 canvas.addEventListener("keypress", function (e) {
-  if (!isEditing || selected === undefined) {
+  if (selected === undefined) {
     return;
   }
 
-  if (e.key === "Enter") {
-    isEditing = false;
-    selected = undefined;
+  switch (e.key) {
+    case "Enter":
+      isEditing = false;
+      selected = undefined;
+      return;
+    case "Delete":
+      const deleteStickyMessage = Action.create({
+        delete: {
+          StickyID: selected.sticky.id,
+        },
+      });
+      selected = undefined;
+      const bb = Action.encode(deleteStickyMessage).finish();
+      ws.send(bb);
+      return;
+  }
+
+  if (!isEditing) {
     return;
   }
 

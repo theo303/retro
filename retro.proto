@@ -42,11 +42,16 @@ message EditAction {
     string content = 2;
 }
 
+message DeleteAction {
+    string StickyID = 1;
+}
+
 message Action {
     oneof action {
         SelectAction select = 1;
         AddAction add = 2;
         MoveAction move = 3;
         EditAction edit = 4;
+        DeleteAction delete = 5;
     }
 }
