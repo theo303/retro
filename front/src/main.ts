@@ -107,6 +107,12 @@ canvas.addEventListener("keypress", function (e) {
     return;
   }
 
+  if (e.key === "Enter") {
+    isEditing = false;
+    selected = undefined;
+    return;
+  }
+
   selected.sticky.content += e.key;
   const updateContentMessage = Action.create({
     edit: {
@@ -129,10 +135,11 @@ canvas.addEventListener("keydown", function (e) {
       return;
     }
 
+    selected.sticky.content = content.substring(0, content.length - 1);
     const updateContentMessage = Action.create({
       edit: {
         StickyID: selected.sticky.id,
-        content: content.substring(0, content.length - 1),
+        content: selected.sticky.content,
       },
     });
     const bb = Action.encode(updateContentMessage).finish();
