@@ -15,6 +15,8 @@ export interface Sticky {
   selectedBy?: string | undefined;
   X: number;
   Y: number;
+  Width: number;
+  Height: number;
   content: string;
 }
 
@@ -40,12 +42,22 @@ export interface SelectAction {
 export interface AddAction {
   X: number;
   Y: number;
+  Width: number;
+  Height: number;
 }
 
 export interface MoveAction {
   StickyID: string;
   X: number;
   Y: number;
+}
+
+export interface ResizeAction {
+  StickyID: string;
+  X: number;
+  Y: number;
+  Height: number;
+  Width: number;
 }
 
 export interface EditAction {
@@ -61,12 +73,13 @@ export interface Action {
   select?: SelectAction | undefined;
   add?: AddAction | undefined;
   move?: MoveAction | undefined;
+  resize?: ResizeAction | undefined;
   edit?: EditAction | undefined;
   delete?: DeleteAction | undefined;
 }
 
 function createBaseSticky(): Sticky {
-  return { id: "", owner: "", selectedBy: undefined, X: 0, Y: 0, content: "" };
+  return { id: "", owner: "", selectedBy: undefined, X: 0, Y: 0, Width: 0, Height: 0, content: "" };
 }
 
 export const Sticky: MessageFns<Sticky> = {
@@ -86,8 +99,14 @@ export const Sticky: MessageFns<Sticky> = {
     if (message.Y !== 0) {
       writer.uint32(40).int64(message.Y);
     }
+    if (message.Width !== 0) {
+      writer.uint32(48).int64(message.Width);
+    }
+    if (message.Height !== 0) {
+      writer.uint32(56).int64(message.Height);
+    }
     if (message.content !== "") {
-      writer.uint32(50).string(message.content);
+      writer.uint32(66).string(message.content);
     }
     return writer;
   },
@@ -140,7 +159,23 @@ export const Sticky: MessageFns<Sticky> = {
           continue;
         }
         case 6: {
-          if (tag !== 50) {
+          if (tag !== 48) {
+            break;
+          }
+
+          message.Width = longToNumber(reader.int64());
+          continue;
+        }
+        case 7: {
+          if (tag !== 56) {
+            break;
+          }
+
+          message.Height = longToNumber(reader.int64());
+          continue;
+        }
+        case 8: {
+          if (tag !== 66) {
             break;
           }
 
@@ -163,6 +198,8 @@ export const Sticky: MessageFns<Sticky> = {
       selectedBy: isSet(object.selectedBy) ? globalThis.String(object.selectedBy) : undefined,
       X: isSet(object.X) ? globalThis.Number(object.X) : 0,
       Y: isSet(object.Y) ? globalThis.Number(object.Y) : 0,
+      Width: isSet(object.Width) ? globalThis.Number(object.Width) : 0,
+      Height: isSet(object.Height) ? globalThis.Number(object.Height) : 0,
       content: isSet(object.content) ? globalThis.String(object.content) : "",
     };
   },
@@ -184,6 +221,12 @@ export const Sticky: MessageFns<Sticky> = {
     if (message.Y !== 0) {
       obj.Y = Math.round(message.Y);
     }
+    if (message.Width !== 0) {
+      obj.Width = Math.round(message.Width);
+    }
+    if (message.Height !== 0) {
+      obj.Height = Math.round(message.Height);
+    }
     if (message.content !== "") {
       obj.content = message.content;
     }
@@ -200,6 +243,8 @@ export const Sticky: MessageFns<Sticky> = {
     message.selectedBy = object.selectedBy ?? undefined;
     message.X = object.X ?? 0;
     message.Y = object.Y ?? 0;
+    message.Width = object.Width ?? 0;
+    message.Height = object.Height ?? 0;
     message.content = object.content ?? "";
     return message;
   },
@@ -511,7 +556,7 @@ export const SelectAction: MessageFns<SelectAction> = {
 };
 
 function createBaseAddAction(): AddAction {
-  return { X: 0, Y: 0 };
+  return { X: 0, Y: 0, Width: 0, Height: 0 };
 }
 
 export const AddAction: MessageFns<AddAction> = {
@@ -521,6 +566,12 @@ export const AddAction: MessageFns<AddAction> = {
     }
     if (message.Y !== 0) {
       writer.uint32(16).int64(message.Y);
+    }
+    if (message.Width !== 0) {
+      writer.uint32(24).int64(message.Width);
+    }
+    if (message.Height !== 0) {
+      writer.uint32(32).int64(message.Height);
     }
     return writer;
   },
@@ -548,6 +599,22 @@ export const AddAction: MessageFns<AddAction> = {
           message.Y = longToNumber(reader.int64());
           continue;
         }
+        case 3: {
+          if (tag !== 24) {
+            break;
+          }
+
+          message.Width = longToNumber(reader.int64());
+          continue;
+        }
+        case 4: {
+          if (tag !== 32) {
+            break;
+          }
+
+          message.Height = longToNumber(reader.int64());
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -561,6 +628,8 @@ export const AddAction: MessageFns<AddAction> = {
     return {
       X: isSet(object.X) ? globalThis.Number(object.X) : 0,
       Y: isSet(object.Y) ? globalThis.Number(object.Y) : 0,
+      Width: isSet(object.Width) ? globalThis.Number(object.Width) : 0,
+      Height: isSet(object.Height) ? globalThis.Number(object.Height) : 0,
     };
   },
 
@@ -572,6 +641,12 @@ export const AddAction: MessageFns<AddAction> = {
     if (message.Y !== 0) {
       obj.Y = Math.round(message.Y);
     }
+    if (message.Width !== 0) {
+      obj.Width = Math.round(message.Width);
+    }
+    if (message.Height !== 0) {
+      obj.Height = Math.round(message.Height);
+    }
     return obj;
   },
 
@@ -582,6 +657,8 @@ export const AddAction: MessageFns<AddAction> = {
     const message = createBaseAddAction();
     message.X = object.X ?? 0;
     message.Y = object.Y ?? 0;
+    message.Width = object.Width ?? 0;
+    message.Height = object.Height ?? 0;
     return message;
   },
 };
@@ -674,6 +751,130 @@ export const MoveAction: MessageFns<MoveAction> = {
     message.StickyID = object.StickyID ?? "";
     message.X = object.X ?? 0;
     message.Y = object.Y ?? 0;
+    return message;
+  },
+};
+
+function createBaseResizeAction(): ResizeAction {
+  return { StickyID: "", X: 0, Y: 0, Height: 0, Width: 0 };
+}
+
+export const ResizeAction: MessageFns<ResizeAction> = {
+  encode(message: ResizeAction, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.StickyID !== "") {
+      writer.uint32(10).string(message.StickyID);
+    }
+    if (message.X !== 0) {
+      writer.uint32(16).int64(message.X);
+    }
+    if (message.Y !== 0) {
+      writer.uint32(24).int64(message.Y);
+    }
+    if (message.Height !== 0) {
+      writer.uint32(32).int64(message.Height);
+    }
+    if (message.Width !== 0) {
+      writer.uint32(40).int64(message.Width);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): ResizeAction {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    let end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseResizeAction();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 10) {
+            break;
+          }
+
+          message.StickyID = reader.string();
+          continue;
+        }
+        case 2: {
+          if (tag !== 16) {
+            break;
+          }
+
+          message.X = longToNumber(reader.int64());
+          continue;
+        }
+        case 3: {
+          if (tag !== 24) {
+            break;
+          }
+
+          message.Y = longToNumber(reader.int64());
+          continue;
+        }
+        case 4: {
+          if (tag !== 32) {
+            break;
+          }
+
+          message.Height = longToNumber(reader.int64());
+          continue;
+        }
+        case 5: {
+          if (tag !== 40) {
+            break;
+          }
+
+          message.Width = longToNumber(reader.int64());
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): ResizeAction {
+    return {
+      StickyID: isSet(object.StickyID) ? globalThis.String(object.StickyID) : "",
+      X: isSet(object.X) ? globalThis.Number(object.X) : 0,
+      Y: isSet(object.Y) ? globalThis.Number(object.Y) : 0,
+      Height: isSet(object.Height) ? globalThis.Number(object.Height) : 0,
+      Width: isSet(object.Width) ? globalThis.Number(object.Width) : 0,
+    };
+  },
+
+  toJSON(message: ResizeAction): unknown {
+    const obj: any = {};
+    if (message.StickyID !== "") {
+      obj.StickyID = message.StickyID;
+    }
+    if (message.X !== 0) {
+      obj.X = Math.round(message.X);
+    }
+    if (message.Y !== 0) {
+      obj.Y = Math.round(message.Y);
+    }
+    if (message.Height !== 0) {
+      obj.Height = Math.round(message.Height);
+    }
+    if (message.Width !== 0) {
+      obj.Width = Math.round(message.Width);
+    }
+    return obj;
+  },
+
+  create<I extends Exact<DeepPartial<ResizeAction>, I>>(base?: I): ResizeAction {
+    return ResizeAction.fromPartial(base ?? ({} as any));
+  },
+  fromPartial<I extends Exact<DeepPartial<ResizeAction>, I>>(object: I): ResizeAction {
+    const message = createBaseResizeAction();
+    message.StickyID = object.StickyID ?? "";
+    message.X = object.X ?? 0;
+    message.Y = object.Y ?? 0;
+    message.Height = object.Height ?? 0;
+    message.Width = object.Width ?? 0;
     return message;
   },
 };
@@ -813,7 +1014,7 @@ export const DeleteAction: MessageFns<DeleteAction> = {
 };
 
 function createBaseAction(): Action {
-  return { select: undefined, add: undefined, move: undefined, edit: undefined, delete: undefined };
+  return { select: undefined, add: undefined, move: undefined, resize: undefined, edit: undefined, delete: undefined };
 }
 
 export const Action: MessageFns<Action> = {
@@ -827,11 +1028,14 @@ export const Action: MessageFns<Action> = {
     if (message.move !== undefined) {
       MoveAction.encode(message.move, writer.uint32(26).fork()).join();
     }
+    if (message.resize !== undefined) {
+      ResizeAction.encode(message.resize, writer.uint32(34).fork()).join();
+    }
     if (message.edit !== undefined) {
-      EditAction.encode(message.edit, writer.uint32(34).fork()).join();
+      EditAction.encode(message.edit, writer.uint32(42).fork()).join();
     }
     if (message.delete !== undefined) {
-      DeleteAction.encode(message.delete, writer.uint32(42).fork()).join();
+      DeleteAction.encode(message.delete, writer.uint32(50).fork()).join();
     }
     return writer;
   },
@@ -872,11 +1076,19 @@ export const Action: MessageFns<Action> = {
             break;
           }
 
-          message.edit = EditAction.decode(reader, reader.uint32());
+          message.resize = ResizeAction.decode(reader, reader.uint32());
           continue;
         }
         case 5: {
           if (tag !== 42) {
+            break;
+          }
+
+          message.edit = EditAction.decode(reader, reader.uint32());
+          continue;
+        }
+        case 6: {
+          if (tag !== 50) {
             break;
           }
 
@@ -897,6 +1109,7 @@ export const Action: MessageFns<Action> = {
       select: isSet(object.select) ? SelectAction.fromJSON(object.select) : undefined,
       add: isSet(object.add) ? AddAction.fromJSON(object.add) : undefined,
       move: isSet(object.move) ? MoveAction.fromJSON(object.move) : undefined,
+      resize: isSet(object.resize) ? ResizeAction.fromJSON(object.resize) : undefined,
       edit: isSet(object.edit) ? EditAction.fromJSON(object.edit) : undefined,
       delete: isSet(object.delete) ? DeleteAction.fromJSON(object.delete) : undefined,
     };
@@ -912,6 +1125,9 @@ export const Action: MessageFns<Action> = {
     }
     if (message.move !== undefined) {
       obj.move = MoveAction.toJSON(message.move);
+    }
+    if (message.resize !== undefined) {
+      obj.resize = ResizeAction.toJSON(message.resize);
     }
     if (message.edit !== undefined) {
       obj.edit = EditAction.toJSON(message.edit);
@@ -933,6 +1149,9 @@ export const Action: MessageFns<Action> = {
     message.add = (object.add !== undefined && object.add !== null) ? AddAction.fromPartial(object.add) : undefined;
     message.move = (object.move !== undefined && object.move !== null)
       ? MoveAction.fromPartial(object.move)
+      : undefined;
+    message.resize = (object.resize !== undefined && object.resize !== null)
+      ? ResizeAction.fromPartial(object.resize)
       : undefined;
     message.edit = (object.edit !== undefined && object.edit !== null)
       ? EditAction.fromPartial(object.edit)

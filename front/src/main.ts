@@ -1,3 +1,5 @@
+import { BuildEdges, EdgeSide } from "./edges";
+import { LocalState, Selected } from "./state";
 import { State, Action, Sticky } from "./retro";
 
 const STICKY_WIDTH = 100;
@@ -16,12 +18,12 @@ if (import.meta.env.DEV) {
 var ws = new WebSocket(`${serverAddress}/connect?name=browser`);
 ws.binaryType = "arraybuffer";
 
-var stickiesPaths: { sticky: Sticky; path: Path2D }[] = [];
+var localState = new LocalState(ctx);
 var userID: string;
 var state: State;
 var isMoving = false;
 var isEditing = false;
-var selected: { sticky: Sticky; offset?: { x: number; y: number } } | undefined;
+var isResizing = false;
 
 ws.onmessage = function (event) {
   if (typeof event.data === "string") {
@@ -30,10 +32,10 @@ ws.onmessage = function (event) {
   }
   const payload = new Uint8Array(event.data);
   state = State.decode(payload);
-  if (!selected) {
+  if (!localState.selected) {
     for (let sticky of state.stickies) {
       if (sticky.selectedBy === userID) {
-        selected = { sticky: sticky };
+        localState.selected = new Selected(sticky);
       }
     }
   }
@@ -48,20 +50,27 @@ canvas.addEventListener("mousedown", function (e) {
   const y = e.clientY;
 
   isEditing = false;
-  for (let s of stickiesPaths) {
+
+  let isOnEdge = localState.IsOnEdge(x, y);
+  if (isOnEdge) {
+    localState.selected = new Selected(isOnEdge.sticky);
+    localState.selected.edge = isOnEdge.edgeSide;
+    isResizing = true;
+    return;
+  }
+
+  for (let s of localState.stickies) {
     if (ctx.isPointInPath(s.path, x, y)) {
-      if (selected && s.sticky.id == selected.sticky.id) {
+      if (localState.selected && s.sticky.id == localState.selected.sticky.id) {
         isEditing = true;
       }
       const selectActionMessage = Action.create({
         select: { StickyID: s.sticky.id },
       });
-      selected = {
-        sticky: s.sticky,
-        offset: {
-          x: x - s.sticky.X,
-          y: y - s.sticky.Y,
-        },
+      localState.selected = new Selected(s.sticky);
+      localState.selected.offset = {
+        x: x - s.sticky.X,
+        y: y - s.sticky.Y,
       };
       isMoving = true;
       const bb = Action.encode(selectActionMessage).finish();
@@ -69,12 +78,14 @@ canvas.addEventListener("mousedown", function (e) {
       return;
     }
   }
-  selected = undefined;
+  localState.selected = undefined;
 
   const addActionMessage = Action.create({
     add: {
       X: x - STICKY_WIDTH / 2,
       Y: y - STICKY_HEIGHT / 2,
+      Width: STICKY_WIDTH,
+      Height: STICKY_HEIGHT,
     },
   });
   var bb = Action.encode(addActionMessage).finish();
@@ -83,42 +94,112 @@ canvas.addEventListener("mousedown", function (e) {
 
 canvas.addEventListener("mouseup", function (_) {
   isMoving = false;
+  isResizing = false;
 });
 
 canvas.addEventListener("mousemove", function (e) {
-  if (isMoving === false || selected === undefined) {
+  const x = e.clientX;
+  const y = e.clientY;
+
+  let isOnEdge = localState.IsOnEdge(x, y);
+  if (isOnEdge) {
+    switch (isOnEdge.edgeSide) {
+      case EdgeSide.N:
+        document.body.style.cursor = "n-resize";
+        break;
+      case EdgeSide.E:
+        document.body.style.cursor = "e-resize";
+        break;
+      case EdgeSide.S:
+        document.body.style.cursor = "s-resize";
+        break;
+      case EdgeSide.W:
+        document.body.style.cursor = "w-resize";
+        break;
+    }
+  } else {
+    document.body.style.cursor = "default";
+  }
+
+  if (!localState.selected) {
     return;
   }
 
-  const moveActionMessage = Action.create({
-    move: {
-      StickyID: selected.sticky.id,
-      X: e.clientX - selected.offset!.x,
-      Y: e.clientY - selected.offset!.y,
-    },
-  });
-  const bb = Action.encode(moveActionMessage).finish();
-  ws.send(bb);
-  return;
+  if (isMoving) {
+    const moveActionMessage = Action.create({
+      move: {
+        StickyID: localState.selected.sticky.id,
+        X: x - localState.selected.offset!.x,
+        Y: y - localState.selected.offset!.y,
+      },
+    });
+    const bb = Action.encode(moveActionMessage).finish();
+    ws.send(bb);
+    return;
+  }
+
+  if (isResizing) {
+    if (!localState.selected.edge) {
+      return;
+    }
+    let sticky = localState.selected.sticky;
+    let newX = sticky.X;
+    let newY = sticky.Y;
+    let newHeight = sticky.Height;
+    let newWidth = sticky.Width;
+    let delta: number;
+    switch (localState.selected.edge) {
+      case EdgeSide.N:
+        delta = y - sticky.Y;
+        newY = sticky.Y + delta;
+        newHeight = sticky.Height - delta;
+        break;
+      case EdgeSide.E:
+        delta = x - sticky.X - sticky.Width;
+        newWidth = sticky.Width + delta;
+        break;
+      case EdgeSide.S:
+        delta = y - sticky.Y - sticky.Height;
+        newHeight = sticky.Height + delta;
+        break;
+      case EdgeSide.W:
+        delta = x - sticky.X;
+        newX = sticky.X + delta;
+        newWidth = sticky.Width - delta;
+        break;
+    }
+    const resizeActionMessage = Action.create({
+      resize: {
+        StickyID: localState.selected.sticky.id,
+        X: newX,
+        Y: newY,
+        Height: newHeight,
+        Width: newWidth,
+      },
+    });
+    const bb = Action.encode(resizeActionMessage).finish();
+    ws.send(bb);
+    return;
+  }
 });
 
 canvas.addEventListener("keypress", function (e) {
-  if (selected === undefined) {
+  if (!localState.selected) {
     return;
   }
 
   switch (e.key) {
     case "Enter":
       isEditing = false;
-      selected = undefined;
+      localState.selected = undefined;
       return;
     case "Delete":
       const deleteStickyMessage = Action.create({
         delete: {
-          StickyID: selected.sticky.id,
+          StickyID: localState.selected.sticky.id,
         },
       });
-      selected = undefined;
+      localState.selected = undefined;
       const bb = Action.encode(deleteStickyMessage).finish();
       ws.send(bb);
       return;
@@ -128,11 +209,11 @@ canvas.addEventListener("keypress", function (e) {
     return;
   }
 
-  selected.sticky.content += e.key;
+  localState.selected.sticky.content += e.key;
   const updateContentMessage = Action.create({
     edit: {
-      StickyID: selected.sticky.id,
-      content: selected.sticky.content,
+      StickyID: localState.selected.sticky.id,
+      content: localState.selected.sticky.content,
     },
   });
   const bb = Action.encode(updateContentMessage).finish();
@@ -140,21 +221,24 @@ canvas.addEventListener("keypress", function (e) {
 });
 
 canvas.addEventListener("keydown", function (e) {
-  if (!isEditing || selected === undefined) {
+  if (!isEditing || !localState.selected) {
     return;
   }
 
   if (e.key === "Backspace") {
-    const content = selected.sticky.content;
+    const content = localState.selected.sticky.content;
     if (content.length === 0) {
       return;
     }
 
-    selected.sticky.content = content.substring(0, content.length - 1);
+    localState.selected.sticky.content = content.substring(
+      0,
+      content.length - 1,
+    );
     const updateContentMessage = Action.create({
       edit: {
-        StickyID: selected.sticky.id,
-        content: selected.sticky.content,
+        StickyID: localState.selected.sticky.id,
+        content: localState.selected.sticky.content,
       },
     });
     const bb = Action.encode(updateContentMessage).finish();
@@ -172,28 +256,26 @@ function update(time: DOMHighResTimeStamp) {
   clear(time - lastTime);
   lastTime = time;
 
-  stickiesPaths = [];
+  localState.stickies = [];
   for (let s of state.stickies) {
-    const path = drawSticky(s.X, s.Y, s.content, s.selectedBy);
-    stickiesPaths.push({ sticky: s, path: path });
+    localState.stickies.push({
+      sticky: s,
+      path: drawSticky(s),
+      edges: BuildEdges(s),
+    });
   }
-  stickiesPaths.reverse();
+  localState.stickies.reverse();
 
   requestAnimationFrame(update);
 }
 
-function drawSticky(
-  x: number,
-  y: number,
-  content: string,
-  selectedBy: string | undefined,
-) {
-  ctx.moveTo(x, y);
+function drawSticky(s: Sticky): Path2D {
+  ctx.moveTo(s.X, s.Y);
   ctx.beginPath();
   const path = new Path2D();
-  path.rect(x, y, STICKY_WIDTH, STICKY_HEIGHT);
+  path.rect(s.X, s.Y, s.Width, s.Height);
   ctx.fillStyle = "yellow";
-  if (selectedBy === userID) {
+  if (s.selectedBy === userID) {
     if (isEditing) {
       ctx.strokeStyle = "red";
     } else {
@@ -209,7 +291,7 @@ function drawSticky(
   ctx.fillStyle = "black";
   ctx.textAlign = "center";
   ctx.font = "15px Arial";
-  ctx.fillText(content, x + STICKY_WIDTH / 2, y + STICKY_HEIGHT / 2);
+  ctx.fillText(s.content, s.X + s.Width / 2, s.Y + s.Height / 2);
   return path;
 }
 

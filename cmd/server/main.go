@@ -28,6 +28,8 @@ func main() {
 				Owner:   "1",
 				X:       100,
 				Y:       100,
+				Width:   100,
+				Height:  100,
 				Content: "je contient du texte11",
 			},
 			{
@@ -35,6 +37,8 @@ func main() {
 				Owner:   "1",
 				X:       200,
 				Y:       200,
+				Width:   1000,
+				Height:  200,
 				Content: "je contient du texte22",
 			},
 		},

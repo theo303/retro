@@ -174,9 +174,11 @@ func (s *Server) applyAction(a *Action, userID string) error {
 	case *Action_Add:
 		stickyID := "s-" + randString()
 		sticky := &Sticky{
-			Id: stickyID,
-			X:  action.Add.X,
-			Y:  action.Add.Y,
+			Id:     stickyID,
+			X:      action.Add.X,
+			Y:      action.Add.Y,
+			Width:  action.Add.Width,
+			Height: action.Add.Height,
 		}
 		s.State.Stickies = append(s.State.Stickies, sticky)
 		if err := selection(s.State, sticky, stickyID, userID); err != nil {
@@ -196,6 +198,22 @@ func (s *Server) applyAction(a *Action, userID string) error {
 		}
 		sticky.X = action.Move.X
 		sticky.Y = action.Move.Y
+	case *Action_Resize:
+		sticky := riseSticky(s.State.Stickies, action.Resize.StickyID)
+		if sticky == nil {
+			return errors.New("resize: sticky not found")
+		}
+		if sticky.SelectedBy == nil {
+			if err := selection(s.State, sticky, action.Resize.StickyID, userID); err != nil {
+				return fmt.Errorf("resize: %w", err)
+			}
+		} else if *sticky.SelectedBy != userID {
+			return fmt.Errorf("resize: sticky is selected by another user (%s)", *sticky.SelectedBy)
+		}
+		sticky.X = action.Resize.X
+		sticky.Y = action.Resize.Y
+		sticky.Height = action.Resize.Height
+		sticky.Width = action.Resize.Width
 	case *Action_Edit:
 		sticky := riseSticky(s.State.Stickies, action.Edit.StickyID)
 		if sticky == nil {

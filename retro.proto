@@ -9,7 +9,9 @@ message Sticky {
     optional string selectedBy = 3;
     int64 X = 4;
     int64 Y = 5;
-    string content = 6;
+    int64 Width = 6;
+    int64 Height = 7;
+    string content = 8;
 }
 
 message User {
@@ -29,12 +31,22 @@ message SelectAction {
 message AddAction {
     int64 X = 1;
     int64 Y = 2;
+    int64 Width = 3;
+    int64 Height = 4;
 }
 
 message MoveAction {
     string StickyID = 1;
     int64 X = 2;
     int64 Y = 3;
+}
+
+message ResizeAction {
+    string StickyID = 1;
+    int64 X = 2;
+    int64 Y = 3;
+    int64 Height = 4;
+    int64 Width = 5;
 }
 
 message EditAction {
@@ -51,7 +63,8 @@ message Action {
         SelectAction select = 1;
         AddAction add = 2;
         MoveAction move = 3;
-        EditAction edit = 4;
-        DeleteAction delete = 5;
+        ResizeAction resize = 4;
+        EditAction edit = 5;
+        DeleteAction delete = 6;
     }
 }
