@@ -112,6 +112,19 @@ canvas.addEventListener("keydown", function (e) {
     e.preventDefault() // prevent the "Enter" key from adding a newline to the textarea
     isEditing = true;
     addInput(localState.selected.sticky);
+    return;
+  }
+
+  if(localState.selected && (e.key === "Delete" || e.key === "Backspace")) {
+    const deleteStickyMessage = Action.create({
+      delete: {
+        StickyID: localState.selected.sticky.id,
+      },
+    });
+    localState.selected = undefined;
+    const bb = Action.encode(deleteStickyMessage).finish();
+    ws.send(bb);
+    return;
   }
 })
 
