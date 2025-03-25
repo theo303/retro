@@ -4,10 +4,12 @@ import { State, Action, Sticky } from "./retro";
 
 const STICKY_WIDTH = 100;
 const STICKY_HEIGHT = 100;
+const STICKY_BG_COLOR = "yellow";
 
 var canvas = document.getElementById("canvas")! as HTMLCanvasElement;
 canvas.width = 0.98 * window.innerWidth;
 canvas.height = 0.97 * window.innerHeight;
+canvas.style.outline = 'none';
 var ctx = canvas.getContext("2d")!;
 
 var serverAddress = `${window.location.protocol === "https:" ? "wss:" : "ws:"}//${window.location.host}`;
@@ -61,9 +63,6 @@ canvas.addEventListener("mousedown", function (e) {
 
   for (let s of localState.stickies) {
     if (ctx.isPointInPath(s.path, x, y)) {
-      if (localState.selected && s.sticky.id == localState.selected.sticky.id) {
-        isEditing = true;
-      }
       const selectActionMessage = Action.create({
         select: { StickyID: s.sticky.id },
       });
@@ -79,6 +78,21 @@ canvas.addEventListener("mousedown", function (e) {
     }
   }
   localState.selected = undefined;
+});
+
+canvas.addEventListener("dblclick", function (e) {
+  const x = e.clientX;
+  const y = e.clientY;
+
+  for (let s of localState.stickies) {
+    if (ctx.isPointInPath(s.path, x, y)) {
+      isEditing = true;
+      addInput(s.sticky);
+      return;
+    }
+  }
+
+  localState.selected = undefined;
 
   const addActionMessage = Action.create({
     add: {
@@ -91,6 +105,28 @@ canvas.addEventListener("mousedown", function (e) {
   var bb = Action.encode(addActionMessage).finish();
   ws.send(bb);
 });
+
+
+canvas.addEventListener("keydown", function (e) {
+  if(localState.selected && !isEditing && e.key === "Enter") {
+    e.preventDefault() // prevent the "Enter" key from adding a newline to the textarea
+    isEditing = true;
+    addInput(localState.selected.sticky);
+    return;
+  }
+
+  if(localState.selected && (e.key === "Delete" || e.key === "Backspace")) {
+    const deleteStickyMessage = Action.create({
+      delete: {
+        StickyID: localState.selected.sticky.id,
+      },
+    });
+    localState.selected = undefined;
+    const bb = Action.encode(deleteStickyMessage).finish();
+    ws.send(bb);
+    return;
+  }
+})
 
 canvas.addEventListener("mouseup", function (_) {
   isMoving = false;
@@ -183,69 +219,6 @@ canvas.addEventListener("mousemove", function (e) {
   }
 });
 
-canvas.addEventListener("keypress", function (e) {
-  if (!localState.selected) {
-    return;
-  }
-
-  switch (e.key) {
-    case "Enter":
-      isEditing = false;
-      localState.selected = undefined;
-      return;
-    case "Delete":
-      const deleteStickyMessage = Action.create({
-        delete: {
-          StickyID: localState.selected.sticky.id,
-        },
-      });
-      localState.selected = undefined;
-      const bb = Action.encode(deleteStickyMessage).finish();
-      ws.send(bb);
-      return;
-  }
-
-  if (!isEditing) {
-    return;
-  }
-
-  localState.selected.sticky.content += e.key;
-  const updateContentMessage = Action.create({
-    edit: {
-      StickyID: localState.selected.sticky.id,
-      content: localState.selected.sticky.content,
-    },
-  });
-  const bb = Action.encode(updateContentMessage).finish();
-  ws.send(bb);
-});
-
-canvas.addEventListener("keydown", function (e) {
-  if (!isEditing || !localState.selected) {
-    return;
-  }
-
-  if (e.key === "Backspace") {
-    const content = localState.selected.sticky.content;
-    if (content.length === 0) {
-      return;
-    }
-
-    localState.selected.sticky.content = content.substring(
-      0,
-      content.length - 1,
-    );
-    const updateContentMessage = Action.create({
-      edit: {
-        StickyID: localState.selected.sticky.id,
-        content: localState.selected.sticky.content,
-      },
-    });
-    const bb = Action.encode(updateContentMessage).finish();
-    ws.send(bb);
-  }
-});
-
 var lastTime: DOMHighResTimeStamp;
 
 function update(time: DOMHighResTimeStamp) {
@@ -274,7 +247,7 @@ function drawSticky(s: Sticky): Path2D {
   ctx.beginPath();
   const path = new Path2D();
   path.roundRect(s.X, s.Y, s.Width, s.Height, 2);
-  ctx.fillStyle = "yellow";
+  ctx.fillStyle = STICKY_BG_COLOR;
   if (s.selectedBy === userID) {
     if (isEditing) {
       ctx.strokeStyle = "red";
@@ -307,3 +280,52 @@ function clear(deltaTime: number) {
 }
 
 requestAnimationFrame(update);
+
+function addInput(sticky: Sticky) {
+  let input = document.createElement('textarea');
+  input.value = sticky.content;
+
+  input.style.position = 'fixed';
+  input.style.resize = 'none';
+  input.style.left = `${sticky.X + 12}px`;
+  input.style.top = `${sticky.Y + 12}px`;
+  input.style.width = `${sticky.Width - 12}px`;
+  input.style.height = `${sticky.Height - 12}px`;
+  input.style.backgroundColor = STICKY_BG_COLOR;
+  input.style.scrollbarColor = `dimgrey ${STICKY_BG_COLOR}`;
+  input.style.outline = 'none';
+  input.style.border = 'none';
+
+  function removeInput() {
+    // prevent onblur from being called on removeChild after input is removed -_-
+    input.onblur = null;
+
+    sticky.content = input.value;
+    const updateContentMessage = Action.create({
+      edit: {
+        StickyID: sticky.id,
+        content: sticky.content,
+      },
+    });
+    const bb = Action.encode(updateContentMessage).finish();
+    ws.send(bb);
+    document.body.removeChild(input);
+    isEditing = false;
+    canvas.focus();
+  }
+
+  input.onkeydown = function handleEnter(e) {
+    if (e.key === 'Enter' || e.key === 'Escape') {
+      removeInput();
+    }
+  };
+
+  input.onblur = function () {
+    removeInput();
+  };
+
+  document.body.appendChild(input);
+  input.focus();
+  isEditing = true;
+}
+
