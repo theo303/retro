@@ -246,7 +246,7 @@ function drawSticky(s: Sticky): Path2D {
   ctx.moveTo(s.X, s.Y);
   ctx.beginPath();
   const path = new Path2D();
-  path.rect(s.X, s.Y, s.Width, s.Height);
+  path.roundRect(s.X, s.Y, s.Width, s.Height, 2);
   ctx.fillStyle = STICKY_BG_COLOR;
   if (s.selectedBy === userID) {
     if (isEditing) {
