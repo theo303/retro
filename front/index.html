@@ -7,6 +7,11 @@
         <title>Retro</title>
 
         <style>
+            /* remove margin and padding */
+            html, body {
+                margin: 0;
+                padding: 0;
+            }
             /* disable scrollbars */
             body {
                 overflow: hidden;
@@ -15,7 +20,7 @@
     </head>
     <body>
         <main>
-            <canvas tabindex="1" id="canvas" style="border: 1px solid #000000">
+            <canvas tabindex="1" id="canvas" style="background-color: #f7f9f9;">
             </canvas>
         </main>
         <script type="module" src="/src/main.ts"></script>

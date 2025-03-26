@@ -4,11 +4,14 @@ import { State, Action, Sticky } from "./retro";
 
 const STICKY_WIDTH = 100;
 const STICKY_HEIGHT = 100;
-const STICKY_BG_COLOR = "yellow";
+const STICKY_BG_COLOR = "#FEFF9C";
+const STICKY_BORDER_COLOR = "#ddd"
+const STICKY_SELECTED_BORDER_COLOR = "#aaa"
+const TEXT_COLOR = "#31302d"
 
 var canvas = document.getElementById("canvas")! as HTMLCanvasElement;
-canvas.width = 0.98 * window.innerWidth;
-canvas.height = 0.97 * window.innerHeight;
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
 canvas.style.outline = 'none';
 var ctx = canvas.getContext("2d")!;
 
@@ -246,22 +249,17 @@ function drawSticky(s: Sticky): Path2D {
   ctx.moveTo(s.X, s.Y);
   ctx.beginPath();
   const path = new Path2D();
-  path.roundRect(s.X, s.Y, s.Width, s.Height, 2);
+  path.roundRect(s.X, s.Y, s.Width, s.Height, 4);
   ctx.fillStyle = STICKY_BG_COLOR;
+  ctx.lineWidth = 1;
   if (s.selectedBy === userID) {
-    if (isEditing) {
-      ctx.strokeStyle = "red";
-    } else {
-      ctx.strokeStyle = "blue";
-    }
-    ctx.lineWidth = 5;
+    ctx.strokeStyle = STICKY_SELECTED_BORDER_COLOR;
   } else {
-    ctx.strokeStyle = "black";
-    ctx.lineWidth = 2;
+    ctx.strokeStyle = STICKY_BORDER_COLOR;
   }
   ctx.fill(path);
   ctx.stroke(path);
-  ctx.fillStyle = "black";
+  ctx.fillStyle = TEXT_COLOR;
   ctx.textAlign = "center";
   ctx.font = "15px Arial";
   ctx.fillText(s.content, s.X + s.Width / 2, s.Y + s.Height / 2);
@@ -271,7 +269,7 @@ function drawSticky(s: Sticky): Path2D {
 function clear(deltaTime: number) {
   ctx.beginPath();
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.fillStyle = "black";
+  ctx.fillStyle = TEXT_COLOR;
   ctx.textAlign = "left";
   ctx.textBaseline = "top";
   ctx.font = "15px Arial";
@@ -287,12 +285,13 @@ function addInput(sticky: Sticky) {
 
   input.style.position = 'fixed';
   input.style.resize = 'none';
-  input.style.left = `${sticky.X + 12}px`;
-  input.style.top = `${sticky.Y + 12}px`;
-  input.style.width = `${sticky.Width - 12}px`;
-  input.style.height = `${sticky.Height - 12}px`;
+  input.style.left = `${sticky.X + 2}px`;
+  input.style.top = `${sticky.Y + 2}px`;
+  input.style.width = `${sticky.Width - 8}px`;
+  input.style.height = `${sticky.Height - 8}px`;
   input.style.backgroundColor = STICKY_BG_COLOR;
   input.style.scrollbarColor = `dimgrey ${STICKY_BG_COLOR}`;
+  input.style.color = TEXT_COLOR;
   input.style.outline = 'none';
   input.style.border = 'none';
 
